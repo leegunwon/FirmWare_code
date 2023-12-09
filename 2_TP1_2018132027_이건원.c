@@ -282,7 +282,6 @@ void _EXTI_Init(void)
     EXTI->IMR  |= 0x005000;     // EXTI14, 11 \C0\CE\C5ͷ\B4Ʈ mask (Interrupt Enable) \BC\B3\C1\A4
       
     NVIC->ISER[1] |= (1 << (40-32));// 0x00000100
-
 }
 
 /* EXTI15 ISR */
@@ -294,7 +293,7 @@ void EXTI15_10_IRQHandler(void)
 	  	LCD_DisplayText(2,0,"EXTI14");
     }     
 	
-		else if(EXTI->PR & 0x1000)		// EXTI12 Interrupt Pending(\B9߻\FD) \BF\A9\BA\CE?
+	if(EXTI->PR & 0x1000)		// EXTI12 Interrupt Pending(\B9߻\FD) \BF\A9\BA\CE?
 	{
 		EXTI->PR |= 0x1000;		// Pending bit Clear (clear\B8\A6 \BE\C8\C7ϸ\E9 \C0\CE\C5ͷ\B4Ʈ \BC\F6\C7\E0\C8\C4 \B4ٽ\C3 \C0\CE\C5ͷ\B4Ʈ \B9߻\FD)
 		LCD_DisplayText(2,0,"EXTI12");
@@ -307,20 +306,12 @@ void EXTI15_10_IRQHandler(void)
 	LCD_SetBackColor(RGB_WHITE);	//���ڹ���
 	LCD_SetTextColor(RGB_BLACK);	//���ڻ�
 	LCD_DisplayText(0, 0, "LGW 2018132027");
-	LCD_SetTextColor(RGB_BLUE);
-	LCD_DisplayText(1, 0, "EXR1 TMP:  C(   V)");
-	LCD_DisplayText(3, 0, "EXT2 TMP:  C(   V)");
-	LCD_DisplayText(5, 0, "INT TMP:  C(   V)");
+	LCD_DisplayText(1, 0, "Tracking Car");
+	LCD_DisplayText(2, 0, "D1");
+	LCD_DisplayText(3, 0, "D2");
+	LCD_DisplayText(4, 0, "SP(DR):  %%  DIR(DR):");
 	LCD_SetTextColor(RGB_RED);
 	LCD_SetBrushColor(RGB_RED);
-	LCD_DrawFillRect(10, 36, MAX_LEN/10, 11);  //x, y, ���� ����
-        LCD_SetBrushColor(RGB_GREEN);
-	LCD_DrawFillRect(10, 69, MAX_LEN/39, 11);
-        LCD_SetBrushColor(RGB_BLUE);
-	LCD_DrawFillRect(10, 103, MAX_LEN, 11);
-        LCD_SetTextColor(RGB_RED);
-	// -���α���(X): LCD X�� �ѱ���(LCD �¿�𼭸����� 10pixel ������ ����)
-	// -���α���(Y) : ��Ʈ(����)ũ�� / 2 <= X <= ��Ʈũ��
 }
 void DelayMS(unsigned short wMS)
 {
