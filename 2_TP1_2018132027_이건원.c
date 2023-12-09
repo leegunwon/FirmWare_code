@@ -48,10 +48,10 @@ int main(void)
 	TIMER4_PWM_Init();
 
 	while(1){
-		LCD_DisplayChar(2, 5, 'A');
-		if (ADC1->SR && ADC_SR_EOC == ADC_SR_EOC) // ADC1 EOC int
+
+		if (ADC3->SR && ADC_SR_EOC == ADC_SR_EOC) // ADC1 EOC int
             {
-				ADC1->SR &= ~(1<<1);	// EOC flag clear
+				ADC3->SR &= ~(1<<1);	// EOC flag clear
                 
                 // ���� ���
                 Voltage[0] = ADC_value[0]*(3.3 * 10) / 4095;   
@@ -63,6 +63,8 @@ int main(void)
 
 				LCD_DisplayChar(2,9,Voltage[1]/10 + 0x30);
 				LCD_DisplayChar(2,10,Voltage[1]%10 + 0x30);
+
+				ADC3->CR2 |= ADC_CR2_SWSTART;
 			}
 		
 	}
@@ -70,8 +72,7 @@ int main(void)
 void _ADC_Init(void)
 {
 	// ADC1_IN1: (PA1)
-	// ADC1_IN8(PB0)
-       // ADC1_IN16
+	// ADC1_IN9: (PF3)
 	/* 1st Analog signal */
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;  	// RCC_AHB1ENR GPIOA Enable
 	GPIOA->MODER |= 0x0C;	// GPIOA PIN1(PA1) �������� : Analog mode
@@ -92,7 +93,7 @@ void _ADC_Init(void)
 	ADC3->CR1 &= ~(3 << 24);	// RES[1:0]=0b00 : 12bit Resolution
 	ADC3->CR1 |= 0x00000100;	// ADC_ScanCovMode Enable (SCAN=1)
 	ADC3->CR2 &= ~0x00000002;	// ADC_ContinuousConvMode DISABLE (CONT=0)
-	ADC3->CR2 |= (2 << 24);		// EXTSEL[3:0]= 0b0001: Timer1_CH3 clock
+	ADC3->CR2 |= (2 << 24);		// EXTSEL[3:0]= 0b0010: Timer1_CH3 clock
 
     ADC3->CR2 |= (3<<28);
 	ADC3->CR2 &= ~(1 << 11);	// ALIGN=0: ADC_DataAlign_Right
@@ -103,10 +104,10 @@ void _ADC_Init(void)
 
 	/* ADC_RegularChannelConfig *********************************************/
 	ADC3->SMPR2 |= 0x07 << (3 * 1);	// ADC1_CH1 Sample TIme_480Cycles (3*Channel_1)
-	ADC3->SQR3 |= 0x01 << (5 * (1 - 1));	// ADC1_CH1 << (5 * (Rank - 1)),  Rank = 1 (1������ ��ȯ: ��������)
+	ADC3->SQR3 |= 1 << (5 * (1 - 1));	// ADC1_CH1 << (5 * (Rank - 1)),  Rank = 1 (1������ ��ȯ: ��������)
 
 	ADC3->SMPR2 |= 0x07 << (3 * 9);	//ADC1_CH0 Sample Time_480Cycles (3*Channel_0)
-	ADC3->SQR3 |= (0x09 << (5 * (2 - 1)));//ADC1_CH0 << (5*(Rank-1)), Rank = 2 (2������ ��ȯ: �Ÿ�����)
+	ADC3->SQR3 |= (9 << (5 * (2 - 1)));//ADC1_CH0 << (5*(Rank-1)), Rank = 2 (2������ ��ȯ: �Ÿ�����)
 
 
 	/* Enable DMA request after last transfer (Single-ADC mode) */
@@ -114,9 +115,9 @@ void _ADC_Init(void)
 				// for single ADC mode
 	/* Enable ADC1 DMA */
 	ADC3->CR2 |= 0x00000100;	// DMA mode enabled  (DMA=1)
-	ADC3->CR2 |= 0x00000001;	// Enable ADC1:  ADON=1
+	ADC3->CR2 |= 0x00000001;	// Enable ADC3:  ADON=1
 
-    ADC3->CR2 |= ADC_CR2_SWSTART; // 0x40000000 (1<<30)  
+    ADC3->CR2 |= (1<<30) ; // 0x40000000 (1<<30)  
 }
 
 void DMAInit(void)
@@ -125,11 +126,11 @@ void DMAInit(void)
 	RCC->AHB1ENR |= (1 << 22);		//DMA2 clock enable
 	DMA2_Stream0->CR &= ~(7 << 25);	//DMA2 Stream0 channel 0 selected
 
-	// ADC1->DR(Peripheral) ==> ADC_vlaue(Memory)
+	// ADC3->DR(Peripheral) ==> ADC_vlaue(Memory)
 	DMA2_Stream0->PAR |= (uint32_t)&ADC3->DR;	   //Peripheral address - ADC1->DR(Regular data) Address
 	DMA2_Stream0->M0AR |= (uint32_t)&ADC_value; //Memory address - ADC_Value address 
 	DMA2_Stream0->CR &= ~(3 << 6);		  //Data transfer direction : Peripheral-to-memory (P=>M)
-	DMA2_Stream0->NDTR = 2;			  //DMA_BufferSize = 3 (ADC_Value[3])
+	DMA2_Stream0->NDTR = 2;			  //DMA_BufferSize = 2 (ADC_Value[2])
 
 	DMA2_Stream0->CR &= ~(1 << 9); 	//Peripheral increment mode  - Peripheral address pointer is fixed
 	DMA2_Stream0->CR |= (1 << 10);	//Memory increment mode - Memory address pointer is incremented after each data transferd 
@@ -154,11 +155,11 @@ void TIMER1_Init(void)
 	RCC->APB2ENR 	|= (1<<0);	// TIMER1 Enable 
     						
 // PE11�� ��¼����ϰ� Alternate function(TIM1_CH2)���� ��� ���� 
-	GPIOE->MODER 	|= (2<<2*13);	// PE11 Output Alternate function mode					
-	GPIOE->OSPEEDR 	|= (3<<2*13);	// PE11 Output speed (100MHz High speed)
-	GPIOE->OTYPER	&= ~(1<<13);	// PE11 Output type push-pull (reset state)
-	GPIOE->AFR[1]	|= (1 <<4*(13-8)); 	// 0x00000200	(AFR[0].(11~8)=0b0010): Connect TIM5 pins(PA2) to AF2(TIM3..5)
-					// PA2 ==> TIM5_CH3
+	GPIOE->MODER 	|= (2<<2*13);	// PE13 Output Alternate function mode					
+	GPIOE->OSPEEDR 	|= (3<<2*13);	// PE13 Output speed (100MHz High speed)
+	GPIOE->OTYPER	&= ~(1<<13);	// PE13 Output type push-pull (reset state)
+	GPIOE->AFR[1]	|= (1 <<4*(13-8)); 	// 0x00000001	(Connect TIM1 pins(PE13) to AF1
+						// TIM1_CH2: AF1(TIM1..2)
 
 	// Assign 'Interrupt Period' and 'Output Pulse Period'
 	TIM1->PSC = 1680-1;	// Prescaler 84MHz/840 = 0.1MHz (10us)
