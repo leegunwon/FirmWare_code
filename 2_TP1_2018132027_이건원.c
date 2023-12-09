@@ -22,7 +22,7 @@ void _GPIO_Init(void);
 void Display_Process(int16 *pBuf);
 void _ADC_Init(void);
 void DMAInit(void);
-void TIMER1_OC_Init(void);
+void TIMER1_Init(void);
 void TIMER14_PWM_Init(void);
 void TIMER4_PWM_Init(void);
 void _EXTI_Init(void);
@@ -41,13 +41,14 @@ int main(void)
     _GPIO_Init();
 	TIMER14_PWM_Init();
 	_ADC_Init();
-    TIMER1_OC_Init();
+    TIMER1_Init();
     DMAInit();
 	_EXTI_Init();
 	TIMER14_PWM_Init();
 	TIMER4_PWM_Init();
 
 	while(1){
+		LCD_DisplayChar(2, 5, 'A');
 		if (ADC1->SR && ADC_SR_EOC == ADC_SR_EOC) // ADC1 EOC int
             {
 				ADC1->SR &= ~(1<<1);	// EOC flag clear
@@ -62,8 +63,6 @@ int main(void)
 
 				LCD_DisplayChar(2,9,Voltage[1]/10 + 0x30);
 				LCD_DisplayChar(2,10,Voltage[1]%10 + 0x30);
-
-				LCD_DisplayChar(2, 5, 'A');
 			}
 		
 	}
@@ -80,27 +79,26 @@ void _ADC_Init(void)
 
 	/* 2nd Analog signal */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOFEN;  // RCC_AHB1ENR GPIOF Enable
-	GPIOF->MODER |= 0x03;	// GPIOA PIN0(PF3) 
+	GPIOF->MODER |= 0x30;	// GPIOF PIN3(PF3) 
 
 
 	/* ADC Common Init **********************************************************/
-	RCC->APB2ENR |= (1<<8);	// RCC_APB2ENR ADC1 Enable
+	RCC->APB2ENR |= (1<<10);	// RCC_APB2ENR ADC3 Enable
 
 	ADC->CCR &= ~0X0000001F;// ADC_Mode_Independent
 	ADC->CCR |= 0x00010000;	// ADC_Prescaler_Div4 (ADC MAX Clock 36Mhz, 84Mhz(APB2)/4 = 21Mhz
-    ADC->CCR |= (1<<23);
 
 	/* ADC3 Init ****************************************************************/
 	ADC3->CR1 &= ~(3 << 24);	// RES[1:0]=0b00 : 12bit Resolution
 	ADC3->CR1 |= 0x00000100;	// ADC_ScanCovMode Enable (SCAN=1)
 	ADC3->CR2 &= ~0x00000002;	// ADC_ContinuousConvMode DISABLE (CONT=0)
-	ADC3->CR2 |= (2 << 24);		// EXTSEL[3:0]= 0b0001: Timer1_CH2 clock
+	ADC3->CR2 |= (2 << 24);		// EXTSEL[3:0]= 0b0001: Timer1_CH3 clock
 
     ADC3->CR2 |= (3<<28);
 	ADC3->CR2 &= ~(1 << 11);	// ALIGN=0: ADC_DataAlign_Right
 	ADC3->CR2 &= ~(1 << 10);	// EOCS=0: The EOC bit is set at the end of each sequence of regular conversions
 
-	ADC3->SQR1 |= (1 <<20); // ADC Regular channel sequece length = 3 conversion
+	ADC3->SQR1 |= (1 <<20); // ADC Regular channel sequece length = 2 conversion
 	// �̰�
 
 	/* ADC_RegularChannelConfig *********************************************/
