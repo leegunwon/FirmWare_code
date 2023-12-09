@@ -28,16 +28,17 @@ void TIMER4_PWM_Init(void);
 void _EXTI_Init(void);
 void DelayMS(unsigned short wMS);
 void DelayUS(unsigned short wUS);
+uint16_t KEY_Scan(void);
 
-uint16_t ADC_value[3];
 
-uint16_t ADC_value[3];
+uint16_t ADC_value[2], Voltage[2];
+
 int main(void)
 {
 	LCD_Init();	
 	DelayMS(10);	
  	DisplayTitle();
-        
+    _GPIO_Init();
 	TIMER14_PWM_Init();
 	_ADC_Init();
     TIMER1_OC_Init();
@@ -54,7 +55,7 @@ int main(void)
                 // ���� ���
                 Voltage[0] = ADC_value[0]*(3.3 * 10) / 4095;   
                 Voltage[1] = ADC_value[1]*(3.3 * 10) / 4095;
-                Voltage[2] = ADC_value[2]*(3.3 * 10) / 4095;
+
                 
 				LCD_DisplayChar(1,9,Voltage[0]/10 + 0x30);
 				LCD_DisplayChar(1,10,Voltage[0]%10 + 0x30);
@@ -62,11 +63,8 @@ int main(void)
 				LCD_DisplayChar(2,9,Voltage[1]/10 + 0x30);
 				LCD_DisplayChar(2,10,Voltage[1]%10 + 0x30);
 
-				LCD_DisplayChar(3,9,Voltage[2]/10 + 0x30);
-				LCD_DisplayChar(3,10,Voltage[2]%10 + 0x30);
-
+				LCD_DisplayChar(2, 5, 'A');
 			}
-		LCD_DisplayChar(2, 15, 'A');
 		
 	}
 }
@@ -133,7 +131,7 @@ void DMAInit(void)
 	DMA2_Stream0->PAR |= (uint32_t)&ADC3->DR;	   //Peripheral address - ADC1->DR(Regular data) Address
 	DMA2_Stream0->M0AR |= (uint32_t)&ADC_value; //Memory address - ADC_Value address 
 	DMA2_Stream0->CR &= ~(3 << 6);		  //Data transfer direction : Peripheral-to-memory (P=>M)
-	DMA2_Stream0->NDTR = 3;			  //DMA_BufferSize = 3 (ADC_Value[3])
+	DMA2_Stream0->NDTR = 2;			  //DMA_BufferSize = 3 (ADC_Value[3])
 
 	DMA2_Stream0->CR &= ~(1 << 9); 	//Peripheral increment mode  - Peripheral address pointer is fixed
 	DMA2_Stream0->CR |= (1 << 10);	//Memory increment mode - Memory address pointer is incremented after each data transferd 
@@ -333,6 +331,28 @@ void EXTI15_10_IRQHandler(void)
 	LCD_SetTextColor(RGB_RED);
 	LCD_SetBrushColor(RGB_RED);
 }
+
+void _GPIO_Init(void)
+{
+	// LED (GPIO G) \BC\B3\C1\A4 : Output mode
+	RCC->AHB1ENR	|=  0x00000040;	// RCC_AHB1ENR : GPIOG(bit#6) Enable							
+	GPIOG->MODER 	|=  0x00005555;	// GPIOG 0~7 : Output mode (0b01)						
+	GPIOG->OTYPER	&= ~0x00FF;	// GPIOG 0~7 : Push-pull  (GP8~15:reset state)	
+	GPIOG->OSPEEDR 	|=  0x00005555;	// GPIOG 0~7 : Output speed 25MHZ Medium speed 
+   
+	// SW (GPIO H) \BC\B3\C1\A4 : Input mode 
+	RCC->AHB1ENR    |=  0x00000080;	// RCC_AHB1ENR : GPIOH(bit#7) Enable							
+	GPIOH->MODER 	&= ~0xFFFF0000;	// GPIOH 8~15 : Input mode (reset state)				
+	GPIOH->PUPDR 	&= ~0xFFFF0000;	// GPIOH 8~15 : Floating input (No Pull-up, pull-down) :reset state
+
+	// Buzzer (GPIO F) \BC\B3\C1\A4 : Output mode
+	RCC->AHB1ENR	|=  0x00000020;	// RCC_AHB1ENR : GPIOF(bit#5) Enable							
+	GPIOF->MODER 	|=  0x00040000;	// GPIOF 9 : Output mode (0b01)						
+	GPIOF->OTYPER 	&= ~0x0200;	// GPIOF 9 : Push-pull  	
+	GPIOF->OSPEEDR 	|=  0x00040000;	// GPIOF 9 : Output speed 25MHZ Medium speed 
+}	
+
+
 void DelayMS(unsigned short wMS)
 {
 	register unsigned short i;
@@ -344,4 +364,29 @@ void DelayUS(unsigned short wUS)
 {
 	volatile int Dly = (int)wUS*17;
 		for(; Dly; Dly--);
+}
+
+uint8_t key_flag = 0;
+uint16_t KEY_Scan(void)	// input key SW0 - SW7 
+{ 
+	uint16_t key;
+	key = GPIOH->IDR & 0xFF00;	// any key pressed ?
+	if(key == 0xFF00)		// if no key, check key off
+	{	if(key_flag == 0)
+			return key;
+		else
+		{	DelayMS(10);
+			key_flag = 0;
+			return key;
+		}
+	}
+	else				// if key input, check continuous key
+	{	if(key_flag != 0)	// if continuous key, treat as no key input
+			return 0xFF00;
+		else			// if new key,delay for debounce
+		{	key_flag = 1;
+			DelayMS(10);
+ 			return key;
+		}
+	}
 }
