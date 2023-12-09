@@ -28,6 +28,8 @@ void TIMER4_PWM_Init(void);
 void _EXTI_Init(void);
 
 uint16_t ADC_value[3];
+
+uint16_t ADC_value[3];
 int main(void)
 {
 	LCD_Init();	
@@ -43,6 +45,25 @@ int main(void)
 	TIMER4_PWM_Init();
 
 	while(1){
+		if (ADC1->SR && ADC_SR_EOC == ADC_SR_EOC) // ADC1 EOC int
+            {
+				ADC1->SR &= ~(1<<1);	// EOC flag clear
+                
+                // ���� ���
+                Voltage[0] = ADC_value[0]*(3.3 * 10) / 4095;   
+                Voltage[1] = ADC_value[1]*(3.3 * 10) / 4095;
+                Voltage[2] = ADC_value[2]*(3.3 * 10) / 4095;
+                
+				LCD_DisplayChar(1,9,Voltage[0]/10 + 0x30);
+				LCD_DisplayChar(1,10,Voltage[0]%10 + 0x30);
+
+				LCD_DisplayChar(2,9,Voltage[1]/10 + 0x30);
+				LCD_DisplayChar(2,10,Voltage[1]%10 + 0x30);
+
+				LCD_DisplayChar(3,9,Voltage[2]/10 + 0x30);
+				LCD_DisplayChar(3,10,Voltage[2]%10 + 0x30);
+
+			}
 		LCD_DisplayChar(2, 15, 'A');
 		
 	}
@@ -79,19 +100,16 @@ void _ADC_Init(void)
 	ADC3->CR2 &= ~(1 << 11);	// ALIGN=0: ADC_DataAlign_Right
 	ADC3->CR2 &= ~(1 << 10);	// EOCS=0: The EOC bit is set at the end of each sequence of regular conversions
 
-	ADC3->SQR1 |= (2 <<20); // ADC Regular channel sequece length = 3 conversion
+	ADC3->SQR1 |= (1 <<20); // ADC Regular channel sequece length = 3 conversion
 	// �̰�
 
 	/* ADC_RegularChannelConfig *********************************************/
 	ADC3->SMPR2 |= 0x07 << (3 * 1);	// ADC1_CH1 Sample TIme_480Cycles (3*Channel_1)
 	ADC3->SQR3 |= 0x01 << (5 * (1 - 1));	// ADC1_CH1 << (5 * (Rank - 1)),  Rank = 1 (1������ ��ȯ: ��������)
 
-	ADC3->SMPR2 |= 0x07 << (3 * 8);	//ADC1_CH0 Sample Time_480Cycles (3*Channel_0)
-	ADC3->SQR3 |= (0x08 << (5 * (2 - 1)));//ADC1_CH0 << (5*(Rank-1)), Rank = 2 (2������ ��ȯ: �Ÿ�����)
-	
-  	ADC3->SMPR1 |= 0x07 << (3 * (16-10));	
-	ADC3->SQR3 |= (0x10 << (5 * (3 - 1)));   
-        // �̰�
+	ADC3->SMPR2 |= 0x07 << (3 * 9);	//ADC1_CH0 Sample Time_480Cycles (3*Channel_0)
+	ADC3->SQR3 |= (0x09 << (5 * (2 - 1)));//ADC1_CH0 << (5*(Rank-1)), Rank = 2 (2������ ��ȯ: �Ÿ�����)
+
 
 	/* Enable DMA request after last transfer (Single-ADC mode) */
 	ADC3->CR2 |= 0x00000200;	// DMA requests are issued as long as data are converted and DMA=1	
@@ -302,14 +320,14 @@ void EXTI15_10_IRQHandler(void)
     void DisplayTitle(void)
 {
 	LCD_Clear(RGB_WHITE);
-	LCD_SetFont(&Gulim10);		//��Ʈ 
+	LCD_SetFont(&Gulim8);		//��Ʈ 
 	LCD_SetBackColor(RGB_WHITE);	//���ڹ���
 	LCD_SetTextColor(RGB_BLACK);	//���ڻ�
 	LCD_DisplayText(0, 0, "LGW 2018132027");
 	LCD_DisplayText(1, 0, "Tracking Car");
 	LCD_DisplayText(2, 0, "D1");
 	LCD_DisplayText(3, 0, "D2");
-	LCD_DisplayText(4, 0, "SP(DR):  %%  DIR(DR):");
+	LCD_DisplayText(4, 0, "SP(DR):  %  DIR(DR):");
 	LCD_SetTextColor(RGB_RED);
 	LCD_SetBrushColor(RGB_RED);
 }
