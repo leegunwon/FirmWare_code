@@ -47,26 +47,10 @@ int main(void)
 	TIMER14_PWM_Init();
 	TIMER4_PWM_Init();
 
+    ADC3->CR2 |= (1<<30) ; // 0x40000000 (1<<30)  
 	while(1){
-
-		if (ADC3->SR && ADC_SR_EOC == ADC_SR_EOC) // ADC1 EOC int
-            {
-				ADC3->SR &= ~(1<<1);	// EOC flag clear
-                
-                // ���� ���
-                Voltage[0] = ADC_value[0]*(3.3 * 10) / 4095;   
-                Voltage[1] = ADC_value[1]*(3.3 * 10) / 4095;
-
-                
-				LCD_DisplayChar(1,9,Voltage[0]/10 + 0x30);
-				LCD_DisplayChar(1,10,Voltage[0]%10 + 0x30);
-
-				LCD_DisplayChar(2,9,Voltage[1]/10 + 0x30);
-				LCD_DisplayChar(2,10,Voltage[1]%10 + 0x30);
-
-				ADC3->CR2 |= ADC_CR2_SWSTART;
-			}
-		
+		GPIOG->ODR ^= 0x01;
+        DelayMS(300);
 	}
 }
 void _ADC_Init(void)
@@ -87,12 +71,13 @@ void _ADC_Init(void)
 	RCC->APB2ENR |= (1<<10);	// RCC_APB2ENR ADC3 Enable
 
 	ADC->CCR &= ~0X0000001F;// ADC_Mode_Independent
-	ADC->CCR |= 0x00010000;	// ADC_Prescaler_Div4 (ADC MAX Clock 36Mhz, 84Mhz(APB2)/4 = 21Mhz
+	ADC->CCR |= (1<<16);	// ADC_Prescaler_Div4 (ADC MAX Clock 36Mhz, 84Mhz(APB2)/4 = 21Mhz
 
 	/* ADC3 Init ****************************************************************/
 	ADC3->CR1 &= ~(3 << 24);	// RES[1:0]=0b00 : 12bit Resolution
-	ADC3->CR1 |= 0x00000100;	// ADC_ScanCovMode Enable (SCAN=1)
-	ADC3->CR2 &= ~0x00000002;	// ADC_ContinuousConvMode DISABLE (CONT=0)
+	ADC3->CR1 |= (1<<8);	// ADC_ScanCovMode Enable (SCAN=1)
+	ADC3->CR1 |=  (1<<5);		// EOCIE=1: Interrupt enable for EOC
+	ADC3->CR2 &= ~(1<<1);	// ADC_ContinuousConvMode DISABLE (CONT=0)
 	ADC3->CR2 |= (2 << 24);		// EXTSEL[3:0]= 0b0010: Timer1_CH3 clock
 
     ADC3->CR2 |= (3<<28);
@@ -117,8 +102,29 @@ void _ADC_Init(void)
 	ADC3->CR2 |= 0x00000100;	// DMA mode enabled  (DMA=1)
 	ADC3->CR2 |= 0x00000001;	// Enable ADC3:  ADON=1
 
-    ADC3->CR2 |= (1<<30) ; // 0x40000000 (1<<30)  
+	NVIC->ISER[0] |= (1<<18);	// Enable ADC global Interrupt
 }
+
+void ADC_IRQHandler(void)
+{
+	ADC3->SR &= ~(1<<1);	// EOC flag clear
+                
+    // ���� ���
+    Voltage[0] = ADC_value[0]*(16.5 * 10) / 4095;  
+    Voltage[1] = ADC_value[1]*(16.5 * 10) / 4095;
+
+    LCD_SetPenColor(RGB_RED);
+	LCD_DisplayChar(2,15,Voltage[0]/10 + 0x30);
+	LCD_DisplayChar(2,16,Voltage[0]%10 + 0x30);
+	LCD_DrawFillRect(20, 27, Voltage[0]*5+15, 10);
+	LCD_SetPenColor(RGB_GREEN);
+	LCD_DrawFillRect(20, 40, Voltage[1]*5+15, 10);
+	LCD_DisplayChar(2,15,Voltage[1]/10 + 0x30);
+	LCD_DisplayChar(2,16,Voltage[1]%10 + 0x30);
+
+	ADC3->CR2 |= ADC_CR2_SWSTART;
+}
+
 
 void DMAInit(void)
 {
@@ -340,7 +346,7 @@ void EXTI15_10_IRQHandler(void)
 	LCD_DisplayText(2, 0, "D1");
 	LCD_DisplayText(3, 0, "D2");
 	LCD_DisplayText(4, 0, "SP(DR):  %  DIR(DR):");
-	LCD_SetTextColor(RGB_RED);
+	LCD_SetTextColor(RGB_BLUE);
 	LCD_SetBrushColor(RGB_RED);
 }
 
