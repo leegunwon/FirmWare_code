@@ -26,6 +26,8 @@ void TIMER1_OC_Init(void);
 void TIMER14_PWM_Init(void);
 void TIMER4_PWM_Init(void);
 void _EXTI_Init(void);
+void DelayMS(unsigned short wMS);
+void DelayUS(unsigned short wUS);
 
 uint16_t ADC_value[3];
 
