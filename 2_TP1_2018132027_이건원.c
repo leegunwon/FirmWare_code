@@ -148,48 +148,61 @@ void DMAInit(void)
 	DMA2_Stream0->CR |= (1 << 0);	//DMA2_Stream0 enabled
 }
 
-void TIMER1_OC_Init(void) //TIM1_CH3 CC 
+void TIMER1_Init(void)
 {
-	// PE13: TIM1_CH3
-	// PE13�� ��¼����ϰ� Alternate function(TIM1_CH3)���� ��� ����
-	RCC->AHB1ENR   |= (1<<4);   // RCC_AHB1ENR GPIOE Enable
-	GPIOE->MODER   |= (2<<2*13);   // GPIOE PIN13 Output Alternate function mode               
-	GPIOE->OSPEEDR |= (3<<2*13);   // GPIOE PIN13 Output speed (100MHz High speed)
-	GPIOE->OTYPER  = 0x00000000;   // GPIOE PIN13 Output type push-pull (reset state)
-	GPIOE->PUPDR   |= (1<<2*13);   // GPIOE PIN13 Pull-up
-	GPIOE->AFR[1]  |= (1<<4*(13-8)); // Connect TIM1 pins(PE13) to AF1(TIM1/2)
+// TIM1_CH2 (PE13) : 400ms �̺�Ʈ �߻�
+// Clock Enable : GPIOE & TIMER1
+	RCC->AHB1ENR	|= (1<<4);	// GPIOE Enable
+	RCC->APB2ENR 	|= (1<<0);	// TIMER1 Enable 
+    						
+// PE11�� ��¼����ϰ� Alternate function(TIM1_CH2)���� ��� ���� 
+	GPIOE->MODER 	|= (2<<2*13);	// PE11 Output Alternate function mode					
+	GPIOE->OSPEEDR 	|= (3<<2*13);	// PE11 Output speed (100MHz High speed)
+	GPIOE->OTYPER	&= ~(1<<13);	// PE11 Output type push-pull (reset state)
+	GPIOE->AFR[1]	|= (1 <<4*(13-8)); 	// 0x00000200	(AFR[0].(11~8)=0b0010): Connect TIM5 pins(PA2) to AF2(TIM3..5)
+					// PA2 ==> TIM5_CH3
 
-   
-	// Timerbase Mode
-	RCC->APB2ENR   |= 0x01;// RCC_APB1ENR TIMER1 Enable
-
+	// Assign 'Interrupt Period' and 'Output Pulse Period'
 	TIM1->PSC = 1680-1;	// Prescaler 84MHz/840 = 0.1MHz (10us)
 	TIM1->ARR = 40000-1;	// Auto reload  : 10us * 40K = 400ms(period)
-	
-	TIM1->CR1 &= ~(1<<4);   // DIR: Countermode = Upcounter (reset state)
-	TIM1->CR1 &= ~(3<<8);   // CKD: Clock division = 1 (reset state)
-	TIM1->CR1 &= ~(3<<5);    // CMS(Center-aligned mode Sel): No(reset state)
 
-	TIM1->EGR |= (1<<0);    // UG: Update generation 
+	// CR1 : Up counting
+	TIM1->CR1 &= ~(1<<4);	// DIR=0(Up counter)(reset state)
+	TIM1->CR1 &= ~(1<<1);	// UDIS=0(Update event Enabled): By one of following events
+				//	- Counter Overflow/Underflow, 
+				// 	- Setting the UG bit Set,
+				//	- Update Generation through the slave mode controller 
+	TIM1->CR1 &= ~(1<<2);	// URS=0(Update event source Selection): one of following events
+				//	- Counter Overflow/Underflow, 
+				// 	- Setting the UG bit Set,
+				//	- Update Generation through the slave mode controller 
+	TIM1->CR1 &= ~(1<<3);	// OPM=0(The counter is NOT stopped at update event) (reset state)
+	TIM1->CR1 &= ~(1<<7);	// ARPE=0(ARR is NOT buffered) (reset state)
+	TIM1->CR1 &= ~(3<<8); 	// CKD(Clock division)=00(reset state)
+	TIM1->CR1 &= ~(3<<5); 	// CMS(Center-aligned mode Sel)=00 (Edge-aligned mode) (reset state)
+				// Center-aligned mode: The counter counts Up and DOWN alternatively
+
+	// Event & Interrup Enable : UI  
+	TIM1->EGR |= (1<<0);    // UG: Update generation    
+
+	////////////////////////////////
+	// Disable Tim1 Update interrupt
     
-	// Output/Compare Mode
-	TIM1->CCER &= ~(1<<4*(3-1));   // CC3E: OC3 Active 
-	TIM1->CCER |= (1<<(4*(3-1)+1));  // CC3P: OCPolarity_Active Low
-//	TIM1->CCER &= ~(1<<(4*(3-1)+1));  // CC3P: OCPolarity_Active High
+	// Define the corresponding pin by 'Output'  
+	TIM1->CCER |= (1<<8);	// CC3E=1: CC2 channel Output Enable
+				// OC2(TIM1_CH2) Active: �ش����� ���� ��ȣ���
+	TIM1->CCER &= ~(1<<9);	// CC3P=0: CC3 channel Output Polarity (OCPolarity_High : OC2���� �������� ���)  
 
-	TIM1->CCR3 = 100;   // TIM1_Pulse
+	// 'Mode' Selection : Output mode, toggle  
+	TIM1->CCMR2 &= ~(3<<0); // CC3S(CC3 channel) = '0b00' : Output 
+	TIM1->CCMR2 &= ~(1<<3); // OC3P=0: Output Compare 2 preload disable
+	TIM1->CCMR2 |= (3<<4);	// OC3M=0b011: Output Compare 2 Mode : toggle
+				// OC2REF toggles when CNT = CCR2
 
-	TIM1->BDTR |= (1<<15);  // main output enable
-   
-	TIM1->CCMR2 &= ~(3<<8*0); // CC3S(CC1channel): Output 
-	TIM1->CCMR2 &= ~(1<<3); // OC3PE: Output Compare 3 preload disable
-	TIM1->CCMR2 |= (3<<4);   // OC3M: Output Compare 3 Mode : toggle
-
-	TIM1->CR1 &= ~(1<<7);   // ARPE: Auto reload preload disable
-	TIM1->DIER |= (1<<3);   // CC3IE: Enable the Tim1 CC3 interrupt
-   
-
-	TIM1->CR1 &= ~(1<<0);   // CEN: Disable the Tim1 Counter 
+ 	TIM1->CCR3 = 30000;	// TIM1 CCR3 TIM1_Pulse
+    TIM1->BDTR |= (1<<15); 
+      
+	TIM1->CR1 |= (1<<0);						
 }
 
 void TIMER14_PWM_Init(void)  //���� TIM14_CH1 PF9
