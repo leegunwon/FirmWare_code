@@ -16,7 +16,6 @@
 #include "stm32f4xx.h"
 #include "GLCD.h"
 #include "ACC.h"
-#include "FRAM.h"
 
 void DisplayTitle(void);
 void Display_Process(int16 *pBuf);
@@ -33,6 +32,7 @@ void _EXTI_Init(void);
 void SerialSendChar(uint8_t c);
 void SerialSendString(char* s);
 
+void USART_BRR_Configuration(uint32_t USART_BaudRate);
 void DelayMS(unsigned short wMS);
 void DelayUS(unsigned short wUS);
 
@@ -58,9 +58,9 @@ int main(void)
 	TIMER14_PWM_Init();
 	TIMER4_PWM_Init();
 	USART1_Init();
-    Fram_Init();   
-    Fram_Status_Config();  
-	mode = Fram_Read(50);
+  //  Fram_Init();   
+    //Fram_Status_Config();  
+	//mode = Fram_Read(50);
 	if (mode == 1){
 		StopMode();
 	}
@@ -132,8 +132,8 @@ void ADC_IRQHandler(void)
     // ���� ���
 
 		LCD_SetBrushColor(RGB_WHITE);
-		LCD_DrawFillRect(20, 27, 97.5, 10);
-		LCD_DrawFillRect(20, 40, 97.5, 10);
+		LCD_DrawFillRect(20, 27, 98, 10);
+		LCD_DrawFillRect(20, 40, 98, 10);
 
     	LCD_SetBrushColor(RGB_RED);
 		LCD_DisplayChar(2,16,Voltage[0]/10 + 0x30);
@@ -238,7 +238,7 @@ void TIMER1_Init(void)
 	TIM1->CR1 |= (1<<0);						
 }
 
-vvoid TIMER14_PWM_Init(void)  //\BE\C6\C1\F7 TIM14_CH1 PF9
+void TIMER14_PWM_Init(void)  //\BE\C6\C1\F7 TIM14_CH1 PF9
 {  
 // \B8\F0\C5\CD\C6޽\BA(PWM)\C7\C9:PF9(TIM14_CH1), \B8\F0\C5͹\E6\C7\E2(DIR)\C7\C9:?
 // Clock Enable : GPIOF & TIMER14
@@ -358,7 +358,7 @@ void EXTI15_10_IRQHandler(void)
       	EXTI->PR |= 0x4000;       // Pending bit Clear 
 	  	LCD_DisplayChar(1,16,'M');
 		mode = 0;
-		Fram_Write(50, 0);
+		//Fram_Write(50, 0);
     }     
 	
 	if(EXTI->PR & 0x1000)		// EXTI12 Interrupt Pending(\B9߻\FD) \BF\A9\BA\CE?
@@ -366,7 +366,7 @@ void EXTI15_10_IRQHandler(void)
 		EXTI->PR |= 0x1000;		// Pending bit Clear (clear\B8\A6 \BE\C8\C7ϸ\E9 \C0\CE\C5ͷ\B4Ʈ \BC\F6\C7\E0\C8\C4 \B4ٽ\C3 \C0\CE\C5ͷ\B4Ʈ \B9߻\FD)
 		StopMode();
 		mode = 1;
-		Fram_Write(50, 1);
+		//Fram_Write(50, 1);
 	}
 }
     void DisplayTitle(void)
@@ -482,13 +482,13 @@ void USART1_IRQHandler(void)
 		if(ch == 'M'){
 	  		LCD_DisplayChar(1,16,'M');
 			mode = 0;
-			Fram_Write(50, 0);
+			//Fram_Write(50, 0);
 
         }
         else if(ch == 'S'){
             LCD_DisplayChar(1,16,'S');
 			mode = 1;
-			Fram_Write(50, 1);
+			//Fram_Write(50, 1);
         }
 	}
 }
@@ -500,8 +500,8 @@ void USART1_IRQHandler(void)
 void StopMode(void){
 
 	LCD_SetBrushColor(RGB_WHITE);
-	LCD_DrawFillRect(20, 27, 97.5, 10);
-	LCD_DrawFillRect(20, 40, 97.5, 10);
+	LCD_DrawFillRect(20, 27, 98, 10);
+	LCD_DrawFillRect(20, 40, 98, 10);
 
 	LCD_SetBrushColor(RGB_GREEN);
 	LCD_DrawFillRect(20, 40, 15, 10);
