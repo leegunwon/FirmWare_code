@@ -20,20 +20,31 @@
 
 void DisplayTitle(void);
 void Display_Process(int16 *pBuf);
+
 void _ADC_Init(void);
 void DMAInit(void);
+
 void TIMER1_Init(void);
 void TIMER14_PWM_Init(void);
 void TIMER4_PWM_Init(void);
+
 void _EXTI_Init(void);
+
+void SerialSendChar(uint8_t c);
+void SerialSendString(char* s);
+
 void DelayMS(unsigned short wMS);
 void DelayUS(unsigned short wUS);
-void StopMode(void);
-uint16_t KEY_Scan(void);
 
+
+void USART1_Init();
+
+void StopMode(void);
 
 uint16_t ADC_value[2], Voltage[2], Distance[2], DR;
 uint8_t mode = 0;
+uint8_t str[20];
+
 
 int main(void)
 {
@@ -46,6 +57,7 @@ int main(void)
 	_EXTI_Init();
 	TIMER14_PWM_Init();
 	TIMER4_PWM_Init();
+	USART1_Init();
     Fram_Init();   
     Fram_Status_Config();  
 	mode = Fram_Read(50);
@@ -111,13 +123,13 @@ void _ADC_Init(void)
 void ADC_IRQHandler(void)
 {
 	ADC3->SR &= ~(1<<1);	// EOC flag clear
-    if (mode == 0){
-    // ���� ���
-   		Voltage[0] = ADC_value[0]*(16.5 * 10) / 4095;  
-    	Voltage[1] = ADC_value[1]*(16.5 * 10) / 4095;
+    Voltage[0] = ADC_value[0]*(16.5 * 10) / 4095;  
+    Voltage[1] = ADC_value[1]*(16.5 * 10) / 4095;
 
-		Distance[0] = Voltage[0]*5 + 3;
-		Distance[1] = Voltage[0]*5 + 3;
+	Distance[0] = Voltage[0]*5 + 3;
+	Distance[1] = Voltage[0]*5 + 3;
+	if (mode == 0){
+    // ���� ���
 
 		LCD_SetBrushColor(RGB_WHITE);
 		LCD_DrawFillRect(20, 27, 97.5, 10);
@@ -126,9 +138,9 @@ void ADC_IRQHandler(void)
     	LCD_SetBrushColor(RGB_RED);
 		LCD_DisplayChar(2,16,Voltage[0]/10 + 0x30);
 		LCD_DisplayChar(2,17,Voltage[0]%10 + 0x30);
-		LCD_DrawFillRect(20, 27, Voltage[0]*5+15, 10);
+		LCD_DrawFillRect(20, 27, Distance[0], 10);
 		LCD_SetBrushColor(RGB_GREEN);
-		LCD_DrawFillRect(20, 40, Voltage[1]*5+15, 10);
+		LCD_DrawFillRect(20, 40, Distance[1], 10);
 		LCD_DisplayChar(3,16,Voltage[1]/10 + 0x30);
 		LCD_DisplayChar(3,17,Voltage[1]%10 + 0x30);
 
@@ -136,6 +148,9 @@ void ADC_IRQHandler(void)
 		LCD_DisplayChar(4,7,DR + 0x30);
 		LCD_DisplayChar(4,8,'0');
 	}
+	sprintf(str,"%2dm ",Distance[0]);
+    SerialSendString(str);
+
 }
 
 
@@ -464,18 +479,17 @@ void USART1_IRQHandler(void)
 		char ch;
 		ch = (uint16_t)(USART1->DR & (uint16_t)0x01FF);	// ���ŵ� ���� ����
 		LCD_DisplayChar(0, 16, ch); 	// LCD display
-		if(ch == '1'){
-                  sprintf(str,"%2d",Temperature[0]);
-                  SerialSendString(str);
-                }
-                if(ch == '2'){
-                  sprintf(str,"%2d",Temperature[1]);
-                  SerialSendString(str);
-                }
-                if(ch == '3'){
-                  sprintf(str,"%2d",Temperature[2]);
-                  SerialSendString(str);
-                }
+		if(ch == 'M'){
+	  		LCD_DisplayChar(1,16,'M');
+			mode = 0;
+			Fram_Write(50, 0);
+
+        }
+        else if(ch == 'S'){
+            LCD_DisplayChar(1,16,'S');
+			mode = 1;
+			Fram_Write(50, 1);
+        }
 	}
 }
 
