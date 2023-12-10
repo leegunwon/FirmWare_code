@@ -16,6 +16,7 @@
 #include "stm32f4xx.h"
 #include "GLCD.h"
 #include "ACC.h"
+#include "FRAM.h"
 
 void DisplayTitle(void);
 void Display_Process(int16 *pBuf);
@@ -39,14 +40,18 @@ int main(void)
 	LCD_Init();	
 	DelayMS(10);	
  	DisplayTitle();
-	TIMER14_PWM_Init();
 	_ADC_Init();
     TIMER1_Init();
     DMAInit();
 	_EXTI_Init();
 	TIMER14_PWM_Init();
 	TIMER4_PWM_Init();
-
+    Fram_Init();   
+    Fram_Status_Config();  
+	mode = Fram_Read(50);
+	if (mode == 1){
+		StopMode();
+	}
 	while(1){
 
 	}
@@ -338,6 +343,7 @@ void EXTI15_10_IRQHandler(void)
       	EXTI->PR |= 0x4000;       // Pending bit Clear 
 	  	LCD_DisplayChar(1,16,'M');
 		mode = 0;
+		Fram_Write(50, 0);
     }     
 	
 	if(EXTI->PR & 0x1000)		// EXTI12 Interrupt Pending(\B9߻\FD) \BF\A9\BA\CE?
@@ -345,6 +351,7 @@ void EXTI15_10_IRQHandler(void)
 		EXTI->PR |= 0x1000;		// Pending bit Clear (clear\B8\A6 \BE\C8\C7ϸ\E9 \C0\CE\C5ͷ\B4Ʈ \BC\F6\C7\E0\C8\C4 \B4ٽ\C3 \C0\CE\C5ͷ\B4Ʈ \B9߻\FD)
 		StopMode();
 		mode = 1;
+		Fram_Write(50, 1);
 	}
 }
     void DisplayTitle(void)
