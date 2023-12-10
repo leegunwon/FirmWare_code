@@ -89,7 +89,7 @@ void _ADC_Init(void)
 	ADC->CCR |= (1<<16);	// ADC_Prescaler_Div4 (ADC MAX Clock 36Mhz, 84Mhz(APB2)/4 = 21Mhz
 
 	/* ADC3 Init ****************************************************************/
-	ADC3->CR1 &= ~(3 << 24);	// RES[1:0]=0b00 : 12bit Resolution
+	ADC3->CR1 |= (1 << 24);	// RES[1:0]=0b00 : 12bit Resolution
 	ADC3->CR1 |= (1<<8);	// ADC_ScanCovMode Enable (SCAN=1)
 	ADC3->CR1 |=  (1<<5);		// EOCIE=1: Interrupt enable for EOC
 	ADC3->CR2 &= ~(1<<1);	// ADC_ContinuousConvMode DISABLE (CONT=0)
@@ -158,7 +158,7 @@ void DMAInit(void)
 {
  	// DMA2 Stream0 channel0 configuration *************************************
 	RCC->AHB1ENR |= (1<<22);		//DMA2 clock enable
-	DMA2_Stream0->CR &= ~(7<<25);	//DMA2 Stream0 channel 0 selected
+	DMA2_Stream0->CR |= (2<<25);	//DMA2 Stream0 channel 0 selected
 
 	// ADC1->DR(Peripheral) ==> ADC_vlaue(Memory)
 	DMA2_Stream0->PAR |= (uint32_t)&ADC3->DR;	   //Peripheral address - ADC1->DR(Regular data) Address
