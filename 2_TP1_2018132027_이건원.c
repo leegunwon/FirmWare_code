@@ -28,10 +28,11 @@ void TIMER4_PWM_Init(void);
 void _EXTI_Init(void);
 void DelayMS(unsigned short wMS);
 void DelayUS(unsigned short wUS);
+void StopMode(void);
 uint16_t KEY_Scan(void);
 
 
-uint16_t ADC_value[2], Voltage[2];
+uint16_t ADC_value[2], Voltage[2] DR;
 
 int main(void)
 {
@@ -49,8 +50,7 @@ int main(void)
 
     ADC3->CR2 |= (1<<30) ; // 0x40000000 (1<<30)  
 	while(1){
-		GPIOG->ODR ^= 0x01;
-        DelayMS(300);
+
 	}
 }
 void _ADC_Init(void)
@@ -113,14 +113,18 @@ void ADC_IRQHandler(void)
     Voltage[0] = ADC_value[0]*(16.5 * 10) / 4095;  
     Voltage[1] = ADC_value[1]*(16.5 * 10) / 4095;
 
-    LCD_SetPenColor(RGB_RED);
-	LCD_DisplayChar(2,15,Voltage[0]/10 + 0x30);
-	LCD_DisplayChar(2,16,Voltage[0]%10 + 0x30);
+    LCD_SetBrushColor(RGB_RED);
+	LCD_DisplayChar(2,16,Voltage[0]/10 + 0x30);
+	LCD_DisplayChar(2,17,Voltage[0]%10 + 0x30);
 	LCD_DrawFillRect(20, 27, Voltage[0]*5+15, 10);
-	LCD_SetPenColor(RGB_GREEN);
+	LCD_SetBrushColor(RGB_GREEN);
 	LCD_DrawFillRect(20, 40, Voltage[1]*5+15, 10);
-	LCD_DisplayChar(2,15,Voltage[1]/10 + 0x30);
-	LCD_DisplayChar(2,16,Voltage[1]%10 + 0x30);
+	LCD_DisplayChar(3,16,Voltage[1]/10 + 0x30);
+	LCD_DisplayChar(3,17,Voltage[1]%10 + 0x30);
+
+	DR = (Voltage[0]+20)/20;
+	LCD_DisplayChar(4,7,DR + 0x30);
+	LCD_DisplayChar(4,8,'0');
 
 	ADC3->CR2 |= ADC_CR2_SWSTART;
 }
@@ -128,29 +132,29 @@ void ADC_IRQHandler(void)
 
 void DMAInit(void)
 {
-	// DMA2 Stream0 channel0 configuration *************************************
-	RCC->AHB1ENR |= (1 << 22);		//DMA2 clock enable
-	DMA2_Stream0->CR &= ~(7 << 25);	//DMA2 Stream0 channel 0 selected
+ 	// DMA2 Stream0 channel0 configuration *************************************
+	RCC->AHB1ENR |= (1<<22);		//DMA2 clock enable
+	DMA2_Stream0->CR &= ~(7<<25);	//DMA2 Stream0 channel 0 selected
 
-	// ADC3->DR(Peripheral) ==> ADC_vlaue(Memory)
+	// ADC1->DR(Peripheral) ==> ADC_vlaue(Memory)
 	DMA2_Stream0->PAR |= (uint32_t)&ADC3->DR;	   //Peripheral address - ADC1->DR(Regular data) Address
 	DMA2_Stream0->M0AR |= (uint32_t)&ADC_value; //Memory address - ADC_Value address 
-	DMA2_Stream0->CR &= ~(3 << 6);		  //Data transfer direction : Peripheral-to-memory (P=>M)
+	DMA2_Stream0->CR &= ~(3<<6);		  //Data transfer direction : Peripheral-to-memory (P=>M)
 	DMA2_Stream0->NDTR = 2;			  //DMA_BufferSize = 2 (ADC_Value[2])
 
-	DMA2_Stream0->CR &= ~(1 << 9); 	//Peripheral increment mode  - Peripheral address pointer is fixed
-	DMA2_Stream0->CR |= (1 << 10);	//Memory increment mode - Memory address pointer is incremented after each data transferd 
-	DMA2_Stream0->CR |= (1 << 11);	//Peripheral data size - halfword(16bit)
-	DMA2_Stream0->CR |= (1 << 13);	//Memory data size - halfword(16bit)   
-	DMA2_Stream0->CR |= (1 << 8);	//Circular mode enabled   
-	DMA2_Stream0->CR |= (2 << 16);	//Priority level - High
+	DMA2_Stream0->CR &= ~(1<<9); 	//Peripheral increment mode  - Peripheral address pointer is fixed
+	DMA2_Stream0->CR |= (1<<10);	//Memory increment mode - Memory address pointer is incremented after each data transferd 
+	DMA2_Stream0->CR |= (1<<11);	//Peripheral data size - halfword(16bit)
+	DMA2_Stream0->CR |= (1<<13);	//Memory data size - halfword(16bit)   
+	DMA2_Stream0->CR |= (1<<8);	//Circular mode enabled   
+	DMA2_Stream0->CR |= (2<<16);	//Priority level - High
 
-	DMA2_Stream0->FCR &= ~(1 << 2);	//DMA_FIFO_direct mode enabled
-	DMA2_Stream0->FCR |= (1 << 0);	//DMA_FIFO Threshold_HalfFull , Not used in direct mode
+	DMA2_Stream0->FCR &= ~(1<<2);	//DMA_FIFO_direct mode enabled
+	DMA2_Stream0->FCR |= (1<<0);	//DMA_FIFO Threshold_HalfFull , Not used in direct mode
 
-	DMA2_Stream0->CR &= ~(3 << 23);	//Memory burst transfer configuration - single transfer
-	DMA2_Stream0->CR &= ~(3 << 21);	//Peripheral burst transfer configuration - single transfer  
-	DMA2_Stream0->CR |= (1 << 0);	//DMA2_Stream0 enabled
+	DMA2_Stream0->CR &= ~(3<<23);	//Memory burst transfer configuration - single transfer
+	DMA2_Stream0->CR &= ~(3<<21);	//Peripheral burst transfer configuration - single transfer  
+	DMA2_Stream0->CR |= (1<<0);	//DMA2_Stream0 enabled
 }
 
 void TIMER1_Init(void)
@@ -253,7 +257,7 @@ void TIMER14_PWM_Init(void)  //���� TIM14_CH1 PF9
 	// CR1 : Up counting & Counter TIM14 enable
 	TIM14->CR1 	&= ~(1<<4);	// DIR: Countermode = Upcounter (reset state)
 	TIM14->CR1 	&= ~(3<<8);	// CKD: Clock division = 1 (reset state)
-	TIM14->CR1        &= ~(3<<5); // CMS(Center-aligned mode Sel): No(reset state)
+	TIM14->CR1  &= ~(3<<5); // CMS(Center-aligned mode Sel): No(reset state)
 	TIM14->CR1	|= (1<<7);	// ARPE: Auto-reload preload enable
 	TIM14->CR1	|= (1<<0);	// CEN: Counter TIM14 enable
 }
@@ -274,8 +278,8 @@ void TIMER4_PWM_Init(void)
     
 // TIM4 Channel 3 : PWM 1 mode
 	// Assign 'PWM Pulse Period'
-	TIM4->PSC	= 8400-1;	// Prescaler 84,000,000Hz/8400 = 10,000 Hz(0.1ms)  (1~65536)
-	TIM4->ARR	= 100-1;	// Auto reload  (0.1ms * 100 = 10ms : PWM Period)
+	TIM4->PSC	= 840-1;	// Prescaler 84,000,000Hz/8400 = 100,000 Hz(0.01ms)  (1~65536)
+	TIM4->ARR	= 40-1;	// Auto reload  (10us * 40 = 40us : PWM Period)
 
 	// Setting CR1 : 0x0000 (Up counting)
 	TIM4->CR1 &= ~(1<<4);	// DIR=0(Up counter)(reset state)
@@ -285,26 +289,31 @@ void TIMER4_PWM_Init(void)
 	TIM4->CR1 |= (1<<7);	// ARPE=1(ARR is buffered): ARR Preload Enable 
 	TIM4->CR1 &= ~(3<<8); 	// CKD(Clock division)=00(reset state)
 	TIM4->CR1 &= ~(3<<5); 	// CMS(Center-aligned mode Sel)=00 : Edge-aligned mode(reset state)
-				
+	   
 	// Define the corresponding pin by 'Output'  
-	// CCER(Capture/Compare Enable Register) : Enable "Channel 3" 
-	TIM4->CCER	|= (1<<8);	// CC3E=1: OC3(TIM4_CH3) Active(Capture/Compare 3 output enable)
-					// \C7ش\E7\C7\C9(167\B9\F8)\C0\BB \C5\EB\C7\D8 \BD\C5ȣ\C3\E2\B7\C2
-	TIM4->CCER	&= ~(1<<9);	// CC3P=0: CC3 Output Polarity (OCPolarity_High : OC3\C0\B8\B7\CE \B9\DD\C0\FC\BE\F8\C0\CC \C3\E2\B7\C2)
-
+	TIM4->CCER |= (1<<4);	// CC2E=1: CC2 channel Output Enable
+				// OC2(TIM1_CH2) Active: �ش����� ���� ��ȣ���
+	TIM4->CCER &= ~(1<<5);	// CC2P=0: CC3 channel Output Polarity (OCPolarity_High : OC2���� �������� ���)  
+			
 	// Duty Ratio 
 	TIM4->CCR3	= 10;		// CCR3 value
 
-	// 'Mode' Selection : Output mode, PWM 1
-	// CCMR2(Capture/Compare Mode Register 2) : Setting the MODE of Ch3 or Ch4
-	TIM4->CCMR2 &= ~(3<<0); // CC3S(CC3 channel)= '0b00' : Output 
-	TIM4->CCMR2 |= (1<<3); 	// OC3PE=1: Output Compare 3 preload Enable
-	TIM4->CCMR2	|= (6<<4);	// OC3M=0b110: Output compare 3 mode: PWM 1 mode
-	TIM4->CCMR2	|= (1<<7);	// OC3CE=1: Output compare 3 Clear enable
-	
-	//Counter TIM5 enable
-	TIM4->CR1	|= (1<<0);	// CEN: Counter TIM4 enable
+
+	// 'Mode' Selection : Output mode, toggle  
+	TIM4->CCMR1 &= ~(3<<8); // CC2S(CC3 channel) = '0b00' : Output 
+	TIM4->CCMR1 &= ~(1<<11); // OC2P=0: Output Compare 2 preload disable
+	TIM4->CCMR1 |= (3<<12);	// OC2M=0b011: Output Compare 2 Mode : toggle
+				// OC2REF toggles when CNT = CCR2
+
+ 	TIM4->CCR2 = 30000;	// TIM1 CCR2 TIM1_Pulse
+    TIM4->BDTR |= (1<<15); //main output enable
+	////////////////////////////////
+	// Disable Tim1 CC3 interrupt
+      
+	TIM4->CR1 |= (1<<0);	// CEN: Enable the Tim5 Counter  
 }
+
+
 void _EXTI_Init(void)
 {
 	RCC->AHB1ENR |= 0x00000080;   // RCC_AHB1ENR GPIOH Enable
@@ -326,13 +335,13 @@ void EXTI15_10_IRQHandler(void)
      if(EXTI->PR & 0x4000)                   // EXTI14 Interrupt Pending(\B9߻\FD) \BF\A9\BA\CE?
     { 
       	EXTI->PR |= 0x4000;       // Pending bit Clear 
-	  	LCD_DisplayText(2,0,"EXTI14");
+	  	LCD_DisplayChar(1,16,'M');
     }     
 	
 	if(EXTI->PR & 0x1000)		// EXTI12 Interrupt Pending(\B9߻\FD) \BF\A9\BA\CE?
 	{
 		EXTI->PR |= 0x1000;		// Pending bit Clear (clear\B8\A6 \BE\C8\C7ϸ\E9 \C0\CE\C5ͷ\B4Ʈ \BC\F6\C7\E0\C8\C4 \B4ٽ\C3 \C0\CE\C5ͷ\B4Ʈ \B9߻\FD)
-		LCD_DisplayText(2,0,"EXTI12");
+		StopMode();
 	}
 }
     void DisplayTitle(void)
@@ -345,7 +354,7 @@ void EXTI15_10_IRQHandler(void)
 	LCD_DisplayText(1, 0, "Tracking Car");
 	LCD_DisplayText(2, 0, "D1");
 	LCD_DisplayText(3, 0, "D2");
-	LCD_DisplayText(4, 0, "SP(DR):  %  DIR(DR):");
+	LCD_DisplayText(4, 0, "SP(DR): % DIR(DR):");
 	LCD_SetTextColor(RGB_BLUE);
 	LCD_SetBrushColor(RGB_RED);
 }
@@ -370,6 +379,20 @@ void _GPIO_Init(void)
 	GPIOF->OSPEEDR 	|=  0x00040000;	// GPIOF 9 : Output speed 25MHZ Medium speed 
 }	
 
+void StopMode(void){
+
+	LCD_SetBrushColor(RGB_GREEN);
+	LCD_DrawFillRect(20, 40, 15, 10);
+
+	LCD_DisplayChar(4,7,'0');
+	LCD_DisplayChar(4,8,'0');
+	LCD_DisplayChar(4,17,'0');
+	LCD_DisplayChar(1,16,'S');
+	LCD_DisplayChar(2,16,' ');
+	LCD_DisplayChar(2,17,'0');
+	LCD_DisplayChar(3,16,' ');
+	LCD_DisplayChar(3,17,'1');
+}
 
 void DelayMS(unsigned short wMS)
 {
