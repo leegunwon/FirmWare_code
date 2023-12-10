@@ -18,14 +18,12 @@
 #include "ACC.h"
 
 void DisplayTitle(void);
-void _GPIO_Init(void);
 void Display_Process(int16 *pBuf);
 void _ADC_Init(void);
 void DMAInit(void);
 void TIMER1_Init(void);
 void TIMER14_PWM_Init(void);
 void TIMER4_PWM_Init(void);
-void BEEP(void);
 void _EXTI_Init(void);
 void DelayMS(unsigned short wMS);
 void DelayUS(unsigned short wUS);
@@ -33,7 +31,8 @@ void StopMode(void);
 uint16_t KEY_Scan(void);
 
 
-uint16_t ADC_value[2], Voltage[2], DR;
+uint16_t ADC_value[2], Voltage[2], Distance[2], DR;
+bool mode = true;
 
 int main(void)
 {
@@ -48,7 +47,6 @@ int main(void)
 	_EXTI_Init();
 	TIMER14_PWM_Init();
 	TIMER4_PWM_Init();
-	BEEP();
 
 	while(1){
 
@@ -109,24 +107,31 @@ void _ADC_Init(void)
 void ADC_IRQHandler(void)
 {
 	ADC3->SR &= ~(1<<1);	// EOC flag clear
-                
+    if (mode == true){
     // ���� ���
-    Voltage[0] = ADC_value[0]*(16.5 * 10) / 4095;  
-    Voltage[1] = ADC_value[1]*(16.5 * 10) / 4095;
+   		Voltage[0] = ADC_value[0]*(16.5 * 10) / 4095;  
+    	Voltage[1] = ADC_value[1]*(16.5 * 10) / 4095;
 
-    LCD_SetBrushColor(RGB_RED);
-	LCD_DisplayChar(2,16,Voltage[0]/10 + 0x30);
-	LCD_DisplayChar(2,17,Voltage[0]%10 + 0x30);
-	LCD_DrawFillRect(20, 27, Voltage[0]*5+15, 10);
-	LCD_SetBrushColor(RGB_GREEN);
-	LCD_DrawFillRect(20, 40, Voltage[1]*5+15, 10);
-	LCD_DisplayChar(3,16,Voltage[1]/10 + 0x30);
-	LCD_DisplayChar(3,17,Voltage[1]%10 + 0x30);
+		Distance[0] = Voltage[0]*5 + 3;
+		Distance[1] = Voltage[0]*5 + 3;
 
-	DR = (Voltage[0]+20)/20;
-	LCD_DisplayChar(4,7,DR + 0x30);
-	LCD_DisplayChar(4,8,'0');
+		LCD_SetBrushColor(RGB_WHITE);
+		LCD_DrawFillRect(20, 27, 97.5, 10);
+		LCD_DrawFillRect(20, 40, 97.5, 10);
 
+    	LCD_SetBrushColor(RGB_RED);
+		LCD_DisplayChar(2,16,Voltage[0]/10 + 0x30);
+		LCD_DisplayChar(2,17,Voltage[0]%10 + 0x30);
+		LCD_DrawFillRect(20, 27, Voltage[0]*5+15, 10);
+		LCD_SetBrushColor(RGB_GREEN);
+		LCD_DrawFillRect(20, 40, Voltage[1]*5+15, 10);
+		LCD_DisplayChar(3,16,Voltage[1]/10 + 0x30);
+		LCD_DisplayChar(3,17,Voltage[1]%10 + 0x30);
+
+		DR = (Voltage[0]+20)/20;
+		LCD_DisplayChar(4,7,DR + 0x30);
+		LCD_DisplayChar(4,8,'0');
+	}
 }
 
 
@@ -214,21 +219,21 @@ void TIMER1_Init(void)
 	TIM1->CR1 |= (1<<0);						
 }
 
-void TIMER14_PWM_Init(void)  //���� TIM14_CH1 PF9
+vvoid TIMER14_PWM_Init(void)  //\BE\C6\C1\F7 TIM14_CH1 PF9
 {  
-// �����޽�(PWM)��:PF9(TIM14_CH1), ���͹���(DIR)��:?
+// \B8\F0\C5\CD\C6޽\BA(PWM)\C7\C9:PF9(TIM14_CH1), \B8\F0\C5͹\E6\C7\E2(DIR)\C7\C9:?
 // Clock Enable : GPIOF & TIMER14
 	RCC->AHB1ENR	|= (1<<5);	// GPIOF Enable
 	RCC->APB1ENR 	|= (1<<8);	// TIMER14 Enable 
     						
-// PA0�� ��¼����ϰ� Alternate function(TIM14_CH1)���� ��� ���� : PWM ���
+// PA0\C0\BB \C3\E2\B7¼\B3\C1\A4\C7ϰ\ED Alternate function(TIM14_CH1)\C0\B8\B7\CE \BB\E7\BF\EB \BC\B1\BE\F0 : PWM \C3\E2\B7\C2
 	GPIOF->MODER 	|= (2<<18);	// PF9 Output Alternate function mode					
 	GPIOF->OSPEEDR 	|= (3<<18);	// PF9 Output speed (100MHz High speed)
 	GPIOF->OTYPER	&= ~(1<<18);	// PF9 Output type push-pull (reset state)
 	GPIOF->AFR[1]	|= (9<<4); 	// 0x00000002	(Connect TIM14 pins(PF9) to AF9
 					
     
-// PA3�� GPIO  ��¼��� : Dir (���͹���)  ���� �� �𸣰ڳ�
+// PA3\C0\BB GPIO  \C3\E2\B7¼\B3\C1\A4 : Dir (\B8\F0\C5͹\E6\C7\E2)  \C1\F6\B1\DD \C0\DF \B8𸣰ڳ\D7
 //	GPIOF->MODER 	|= (1<<6);	// PF3 Output  mode					
 //	GPIOF->OSPEEDR 	|= (1<<6);	// PF3 Output speed (25MHz High speed)
 //	GPIOF->OTYPER	&= ~(1<<3);	// PF3 Output type push-pull (reset state)
@@ -241,10 +246,10 @@ void TIMER14_PWM_Init(void)  //���� TIM14_CH1 PF9
 	// Define the corresponding pin by 'Output'  
 	// CCER(Capture/Compare Enable Register) : Enable "Channel 1" 
 	TIM14->CCER	|= (1<<0);	// CC1E=1: OC1(TIM5_CH1) Active(Capture/Compare 1 output enable)
-	TIM14->CCER	&= ~(1<<1);	// CC1P=0: CC1 output Polarity High (OC1���� �������� ���)
+	TIM14->CCER	&= ~(1<<1);	// CC1P=0: CC1 output Polarity High (OC1\C0\B8\B7\CE \B9\DD\C0\FC\BE\F8\C0\CC \C3\E2\B7\C2)
 
 	// Duty Ratio  CCR1/80 = 10%
-	TIM14->CCR1= 80;		// CCR1 value
+	TIM14->CCR1= 70;		// CCR1 value
 
 	// 'Mode' Selection : Output mode, PWM 2
 	// CCMR1(Capture/Compare Mode Register 1) : Setting the MODE of Ch1 or Ch2
@@ -257,7 +262,7 @@ void TIMER14_PWM_Init(void)  //���� TIM14_CH1 PF9
 	// CR1 : Up counting & Counter TIM14 enable
 	TIM14->CR1 	&= ~(1<<4);	// DIR: Countermode = Upcounter (reset state)
 	TIM14->CR1 	&= ~(3<<8);	// CKD: Clock division = 1 (reset state)
-	TIM14->CR1  &= ~(3<<5); // CMS(Center-aligned mode Sel): No(reset state)
+	TIM14->CR1        &= ~(3<<5); // CMS(Center-aligned mode Sel): No(reset state)
 	TIM14->CR1	|= (1<<7);	// ARPE: Auto-reload preload enable
 	TIM14->CR1	|= (1<<0);	// CEN: Counter TIM14 enable
 }
@@ -291,10 +296,7 @@ void TIMER4_PWM_Init(void)
 	TIM4->CR1 &= ~(3<<5); 	// CMS(Center-aligned mode Sel)=00 : Edge-aligned mode(reset state)
 	   
 	// Define the corresponding pin by 'Output'  
-	TIM4->CCER |= (1<<4);	// CC2E=1: CC2 channel Output Enable
-				// OC2(TIM1_CH2) Active: �ش����� ���� ��ȣ���
-	TIM4->CCER &= ~(1<<5);	// CC2P=0: CC3 channel Output Polarity (OCPolarity_High : OC2���� �������� ���)  
-			
+	TIM4->CCER |= (1<<4);	// CC2E=1: 'm'
 	// Duty Ratio 
 	TIM4->CCR3	= 10;		// CCR3 value
 
@@ -336,12 +338,14 @@ void EXTI15_10_IRQHandler(void)
     { 
       	EXTI->PR |= 0x4000;       // Pending bit Clear 
 	  	LCD_DisplayChar(1,16,'M');
+		mode = true;
     }     
 	
 	if(EXTI->PR & 0x1000)		// EXTI12 Interrupt Pending(\B9߻\FD) \BF\A9\BA\CE?
 	{
 		EXTI->PR |= 0x1000;		// Pending bit Clear (clear\B8\A6 \BE\C8\C7ϸ\E9 \C0\CE\C5ͷ\B4Ʈ \BC\F6\C7\E0\C8\C4 \B4ٽ\C3 \C0\CE\C5ͷ\B4Ʈ \B9߻\FD)
 		StopMode();
+		mode = false;
 	}
 }
     void DisplayTitle(void)
@@ -359,31 +363,128 @@ void EXTI15_10_IRQHandler(void)
 	LCD_SetBrushColor(RGB_RED);
 }
 
-void _GPIO_Init(void)
+void USART1_Init(void)
 {
-	// LED (GPIO G) \BC\B3\C1\A4 : Output mode
-	RCC->AHB1ENR	|=  0x00000040;	// RCC_AHB1ENR : GPIOG(bit#6) Enable							
-	GPIOG->MODER 	|=  0x00005555;	// GPIOG 0~7 : Output mode (0b01)						
-	GPIOG->OTYPER	&= ~0x00FF;	// GPIOG 0~7 : Push-pull  (GP8~15:reset state)	
-	GPIOG->OSPEEDR 	|=  0x00005555;	// GPIOG 0~7 : Output speed 25MHZ Medium speed 
-   
-	// SW (GPIO H) \BC\B3\C1\A4 : Input mode 
-	RCC->AHB1ENR    |=  0x00000080;	// RCC_AHB1ENR : GPIOH(bit#7) Enable							
-	GPIOH->MODER 	&= ~0xFFFF0000;	// GPIOH 8~15 : Input mode (reset state)				
-	GPIOH->PUPDR 	&= ~0xFFFF0000;	// GPIOH 8~15 : Floating input (No Pull-up, pull-down) :reset state
+	// USART1 : TX(PA9)
+	RCC->AHB1ENR |= (1 << 0);	// RCC_AHB1ENR GPIOA Enable
+	GPIOA->MODER |= (2 << 2 * 9);	// GPIOB PIN9 Output Alternate function mode					
+	GPIOA->OSPEEDR |= (3 << 2 * 9);	// GPIOB PIN9 Output speed (100MHz Very High speed)
+	GPIOA->AFR[1] |= (7 << 4);	// Connect GPIOA pin9 to AF7(USART1)
 
-	// Buzzer (GPIO F) \BC\B3\C1\A4 : Output mode
-	RCC->AHB1ENR	|=  0x00000020;	// RCC_AHB1ENR : GPIOF(bit#5) Enable							
-	GPIOF->MODER 	|=  0x00040000;	// GPIOF 9 : Output mode (0b01)						
-	GPIOF->OTYPER 	&= ~0x0200;	// GPIOF 9 : Push-pull  	
-	GPIOF->OSPEEDR 	|=  0x00040000;	// GPIOF 9 : Output speed 25MHZ Medium speed 
-}	
+	// USART1 : RX(PA10)
+	GPIOA->MODER |= (2 << 2 * 10);	// GPIOA PIN10 Output Alternate function mode
+	GPIOA->OSPEEDR |= (3 << 2 * 10);	// GPIOA PIN10 Output speed (100MHz Very High speed
+	GPIOA->AFR[1] |= (7 << 8);	// Connect GPIOA pin10 to AF7(USART1)
+
+	RCC->APB2ENR |= (1 << 4);	// RCC_APB2ENR USART1 Enable
+
+	USART_BRR_Configuration(19200); // USART Baud rate Configuration
+
+	USART1->CR1 &= ~(1 << 12);	// USART_WordLength 8 Data bit
+	USART1->CR1 &= ~(1 << 10);	// NO USART_Parity
+	USART1->CR1 |= (1 << 2);	// 0x0004, USART_Mode_RX Enable
+	USART1->CR1 |= (1 << 3);	// 0x0008, USART_Mode_Tx Enable
+	USART1->CR2 &= ~(3 << 12);	// 0b00, USART_StopBits_1
+	USART1->CR3 = 0x0000;	// No HardwareFlowControl, No DMA
+
+	USART1->CR1 |= (1 << 5);	// 0x0020, RXNE interrupt Enable
+	USART1->CR1 &= ~(1 << 7); // 0x0080, TXE interrupt Disable 
+
+	NVIC->ISER[1] |= (1 << (37 - 32));// Enable Interrupt USART1 (NVIC 37��)
+	USART1->CR1 |= (1 << 13);	//  0x2000, USART1 Enable
+}
+
+void SerialSendChar(uint8_t Ch) // 1���� ������ �Լ�
+{
+	while ((USART1->SR & USART_SR_TXE) == RESET); // USART_SR_TXE=(1<<7), �۽� ������ ���±��� ���
+
+	USART1->DR = (Ch & 0x01FF);	// ���� (�ִ� 9bit �̹Ƿ� 0x01FF�� masking)
+}
+
+void SerialSendString(char* str) // �������� ������ �Լ�
+{
+	while (*str != '\0') // ���Ṯ�ڰ� ������ ������ ����, ���Ṯ�ڰ� �����Ŀ��� ������ �޸� ���� �߻����ɼ� ����.
+	{
+		SerialSendChar(*str);	// �����Ͱ� ����Ű�� ���� �����͸� �۽�
+		str++; 			// ������ ��ġ ����
+	}
+}
+
+
+
+
+void USART_BRR_Configuration(uint32_t USART_BaudRate)
+{
+	uint32_t tmpreg = 0x00;
+	uint32_t APB2clock = 84000000;	//PCLK2_Frequency
+	uint32_t integerdivider = 0x00;
+	uint32_t fractionaldivider = 0x00;
+
+	// Determine the integer part 
+	if ((USART1->CR1 & USART_CR1_OVER8) != 0) // USART_CR1_OVER8=(1<<15)
+	{                                         // USART1->CR1.OVER8 = 1 (8 oversampling)
+		// Computing 'Integer part' when the oversampling mode is 8 Samples 
+		integerdivider = ((25 * APB2clock) / (2 * USART_BaudRate));
+	}
+	else  // USART1->CR1.OVER8 = 0 (16 oversampling)
+	{	// Computing 'Integer part' when the oversampling mode is 16 Samples 
+		integerdivider = ((25 * APB2clock) / (4 * USART_BaudRate));
+	}
+	tmpreg = (integerdivider / 100) << 4;
+
+	// Determine the fractional part 
+	fractionaldivider = integerdivider - (100 * (tmpreg >> 4));
+
+	// Implement the fractional part in the register 
+	if ((USART1->CR1 & USART_CR1_OVER8) != 0)	// 8 oversampling
+	{
+		tmpreg |= (((fractionaldivider * 8) + 50) / 100) & (0x07);
+	}
+	else 			// 16 oversampling
+	{
+		tmpreg |= (((fractionaldivider * 16) + 50) / 100) & (0x0F);
+	}
+
+	// Write to USART BRR register
+	USART1->BRR = (uint16_t)tmpreg;
+}
+
+
+void USART1_IRQHandler(void)
+{
+	// RX Buffer Full interrupt
+	if ((USART1->SR & USART_SR_RXNE))		// USART_SR_RXNE=(1<<5) 
+	{
+		char ch;
+		ch = (uint16_t)(USART1->DR & (uint16_t)0x01FF);	// ���ŵ� ���� ����
+		LCD_DisplayChar(0, 16, ch); 	// LCD display
+		if(ch == '1'){
+                  sprintf(str,"%2d",Temperature[0]);
+                  SerialSendString(str);
+                }
+                if(ch == '2'){
+                  sprintf(str,"%2d",Temperature[1]);
+                  SerialSendString(str);
+                }
+                if(ch == '3'){
+                  sprintf(str,"%2d",Temperature[2]);
+                  SerialSendString(str);
+                }
+	}
+}
+
+
+
+
 
 void StopMode(void){
 
+	LCD_SetBrushColor(RGB_WHITE);
+	LCD_DrawFillRect(20, 27, 97.5, 10);
+	LCD_DrawFillRect(20, 40, 97.5, 10);
+
 	LCD_SetBrushColor(RGB_GREEN);
 	LCD_DrawFillRect(20, 40, 15, 10);
-
 	LCD_DisplayChar(4,7,'0');
 	LCD_DisplayChar(4,8,'0');
 	LCD_DisplayChar(4,17,'0');
@@ -430,11 +531,4 @@ uint16_t KEY_Scan(void)	// input key SW0 - SW7
  			return key;
 		}
 	}
-}
-
-void BEEP(void)			// Beep for 20 ms 
-{ 	
-	GPIOF->ODR |= (1<<9);	// PF9 'H' Buzzer on
-	DelayMS(20);		// Delay 20 ms
-	GPIOF->ODR &= ~(1<<9);	// PF9 'L' Buzzer off
 }
