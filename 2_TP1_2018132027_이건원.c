@@ -39,7 +39,6 @@ int main(void)
 	LCD_Init();	
 	DelayMS(10);	
  	DisplayTitle();
-    _GPIO_Init();
 	TIMER14_PWM_Init();
 	_ADC_Init();
     TIMER1_Init();
