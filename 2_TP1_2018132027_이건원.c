@@ -32,7 +32,7 @@ uint16_t KEY_Scan(void);
 
 
 uint16_t ADC_value[2], Voltage[2], Distance[2], DR;
-bool mode = true;
+uint8_t mode = 0;
 
 int main(void)
 {
@@ -107,7 +107,7 @@ void _ADC_Init(void)
 void ADC_IRQHandler(void)
 {
 	ADC3->SR &= ~(1<<1);	// EOC flag clear
-    if (mode == true){
+    if (mode == 0){
     // ���� ���
    		Voltage[0] = ADC_value[0]*(16.5 * 10) / 4095;  
     	Voltage[1] = ADC_value[1]*(16.5 * 10) / 4095;
@@ -338,14 +338,14 @@ void EXTI15_10_IRQHandler(void)
     { 
       	EXTI->PR |= 0x4000;       // Pending bit Clear 
 	  	LCD_DisplayChar(1,16,'M');
-		mode = true;
+		mode = 0;
     }     
 	
 	if(EXTI->PR & 0x1000)		// EXTI12 Interrupt Pending(\B9߻\FD) \BF\A9\BA\CE?
 	{
 		EXTI->PR |= 0x1000;		// Pending bit Clear (clear\B8\A6 \BE\C8\C7ϸ\E9 \C0\CE\C5ͷ\B4Ʈ \BC\F6\C7\E0\C8\C4 \B4ٽ\C3 \C0\CE\C5ͷ\B4Ʈ \B9߻\FD)
 		StopMode();
-		mode = false;
+		mode = 1;
 	}
 }
     void DisplayTitle(void)
