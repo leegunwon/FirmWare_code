@@ -33,7 +33,7 @@ void StopMode(void);
 uint16_t KEY_Scan(void);
 
 
-uint16_t ADC_value[2], Voltage[2] DR;
+uint16_t ADC_value[2], Voltage[2], DR;
 
 int main(void)
 {
@@ -50,7 +50,6 @@ int main(void)
 	TIMER4_PWM_Init();
 	BEEP();
 
-    ADC3->CR2 |= (1<<30) ; // 0x40000000 (1<<30)  
 	while(1){
 
 	}
@@ -128,7 +127,6 @@ void ADC_IRQHandler(void)
 	LCD_DisplayChar(4,7,DR + 0x30);
 	LCD_DisplayChar(4,8,'0');
 
-	ADC3->CR2 |= ADC_CR2_SWSTART;
 }
 
 
@@ -276,7 +274,7 @@ void TIMER4_PWM_Init(void)
 	GPIOB->OSPEEDR 	|= (3<<14);	// 0x00030000 PB8 Output speed (100MHz High speed)
 	GPIOB->OTYPER	&= ~(1<<7);	// PB8 Output type push-pull (reset state)
 	GPIOB->PUPDR	|= (1<<14);	// 0x00010000 PB8 Pull-up
- 	GPIOB->AFR[1]	|= (2<<28);	// 0x00000002 (AFR[1].(3~0)=0b0010): Connect TIM4 pins(PB8) to AF2(TIM3..5)
+ 	GPIOB->AFR[0]	|= (2<<28);	// 0x00000002 (AFR[1].(3~0)=0b0010): Connect TIM4 pins(PB8) to AF2(TIM3..5)
     
 // TIM4 Channel 3 : PWM 1 mode
 	// Assign 'PWM Pulse Period'
@@ -435,7 +433,8 @@ uint16_t KEY_Scan(void)	// input key SW0 - SW7
 }
 
 void BEEP(void)			// Beep for 20 ms 
-{ 	GPIOF->ODR |= (1<<9);	// PF9 'H' Buzzer on
+{ 	
+	GPIOF->ODR |= (1<<9);	// PF9 'H' Buzzer on
 	DelayMS(20);		// Delay 20 ms
 	GPIOF->ODR &= ~(1<<9);	// PF9 'L' Buzzer off
 }
