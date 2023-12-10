@@ -25,6 +25,7 @@ void DMAInit(void);
 void TIMER1_Init(void);
 void TIMER14_PWM_Init(void);
 void TIMER4_PWM_Init(void);
+void BEEP(void);
 void _EXTI_Init(void);
 void DelayMS(unsigned short wMS);
 void DelayUS(unsigned short wUS);
@@ -47,6 +48,7 @@ int main(void)
 	_EXTI_Init();
 	TIMER14_PWM_Init();
 	TIMER4_PWM_Init();
+	BEEP();
 
     ADC3->CR2 |= (1<<30) ; // 0x40000000 (1<<30)  
 	while(1){
@@ -430,4 +432,10 @@ uint16_t KEY_Scan(void)	// input key SW0 - SW7
  			return key;
 		}
 	}
+}
+
+void BEEP(void)			// Beep for 20 ms 
+{ 	GPIOF->ODR |= (1<<9);	// PF9 'H' Buzzer on
+	DelayMS(20);		// Delay 20 ms
+	GPIOF->ODR &= ~(1<<9);	// PF9 'L' Buzzer off
 }
